@@ -1017,28 +1017,71 @@ static const char kIndexHtml[] PROGMEM =
     startRampDown();
   }
 
+  function applyWifiStatusPayload(d) {
+    wifiSsid.value = d.sta_ssid || "";
+    wifiPass.value = "";
+    wifiPass.placeholder = d.has_saved_pass
+      ? "leer = gespeichertes Passwort behalten"
+      : "offenes Netz: leer lassen";
+    var staTxt = d.sta_connected
+      ? "<span class=\"ok\">STA verbunden</span> → " + (d.sta_ip || "—")
+      : "STA: nicht verbunden";
+    wifiStatus.innerHTML =
+      "AP: " + (d.ap_ip || "—") + " · " + staTxt;
+    if (footIpLine) {
+      footIpLine.textContent =
+        "AP " + (d.ap_ip || "") + (d.sta_ip ? " · LAN " + d.sta_ip : "") + " · ESP32";
+    }
+  }
+
   function refreshWifi() {
     fetch("/api/wifi/status")
       .then(function (r) { return r.json(); })
-      .then(function (d) {
-        wifiSsid.value = d.sta_ssid || "";
-        wifiPass.value = "";
-        wifiPass.placeholder = d.has_saved_pass
-          ? "leer = gespeichertes Passwort behalten"
-          : "offenes Netz: leer lassen";
-        var staTxt = d.sta_connected
-          ? "<span class=\"ok\">STA verbunden</span> → " + (d.sta_ip || "—")
-          : "STA: nicht verbunden";
-        wifiStatus.innerHTML =
-          "AP: " + (d.ap_ip || "—") + " · " + staTxt;
-        if (footIpLine) {
-          footIpLine.textContent =
-            "AP " + (d.ap_ip || "") + (d.sta_ip ? " · LAN " + d.sta_ip : "") + " · ESP32";
-        }
-      })
+      .then(applyWifiStatusPayload)
       .catch(function () {
         wifiStatus.textContent = "Status nicht lesbar.";
       });
+  }
+
+  var wifiStaPollTimer = null;
+  function clearWifiStaPoll() {
+    if (wifiStaPollTimer) {
+      clearTimeout(wifiStaPollTimer);
+      wifiStaPollTimer = null;
+    }
+  }
+
+  /** Nach Speichern: Status pollen, bei STA mit IPv4 sofort http://<STA-IP>/ laden (Browser springt ins Heim-WLAN). */
+  function schedulePollStaIpRedirect() {
+    clearWifiStaPoll();
+    var deadline = Date.now() + 50000;
+    function tick() {
+      fetch("/api/wifi/status")
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          applyWifiStatusPayload(d);
+          if (d.sta_connected && d.sta_ip) {
+            var ip = String(d.sta_ip).trim();
+            if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+              clearWifiStaPoll();
+              wifiStatus.innerHTML =
+                "Heim-WLAN verbunden — öffne <span class=\"ok\">http://" + ip + "/</span> …";
+              window.location.replace("http://" + ip + "/");
+              return;
+            }
+          }
+          if (Date.now() < deadline) {
+            wifiStaPollTimer = setTimeout(tick, 450);
+          } else {
+            wifiStaPollTimer = null;
+          }
+        })
+        .catch(function () {
+          if (Date.now() < deadline) wifiStaPollTimer = setTimeout(tick, 700);
+          else wifiStaPollTimer = null;
+        });
+    }
+    wifiStaPollTimer = setTimeout(tick, WIFI_SAVE_DELAY_1_MS);
   }
 
   document.getElementById("wifiSave").addEventListener("click", function () {
@@ -1057,9 +1100,7 @@ static const char kIndexHtml[] PROGMEM =
           wifiStatus.textContent = j.err || "Fehler beim Speichern.";
           return;
         }
-        setTimeout(refreshWifi, WIFI_SAVE_DELAY_1_MS);
-        setTimeout(refreshWifi, WIFI_SAVE_DELAY_2_MS);
-        setTimeout(refreshWifi, WIFI_SAVE_DELAY_3_MS);
+        schedulePollStaIpRedirect();
       })
       .catch(function () {
         wifiStatus.textContent = "Anfrage fehlgeschlagen.";

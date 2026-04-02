@@ -142,7 +142,12 @@ static void startSoftApDhcpServer() {
   }
 }
 
-/** DHCP-Option: DNS-Server für Clients = AP (damit Namen wie connectivitycheck… zur ESP-IP auflösen). */
+/** Puffer für DHCP-Opt. 114 (Captive Portal): Pointer muss für DHCPS-Laufzeit gültig bleiben. */
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 2)
+static char gDhcpCaptivePortalUri[72];
+#endif
+
+/** DHCP-Option: DNS = AP; optional Opt. 114 = http://<AP-IP>/ (OS öffnet „Anmelden“-Browser mit ESP-IP). */
 static void setDhcpDnsServerToAp() {
   esp_netif_t *ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
   if (!ap) {
@@ -152,6 +157,17 @@ static void setDhcpDnsServerToAp() {
   uint32_t dns = static_cast<uint32_t>(WiFi.softAPIP());
   esp_netif_dhcps_stop(ap);
   esp_err_t err = esp_netif_dhcps_option(ap, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &dns, sizeof(dns));
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 2)
+  snprintf(gDhcpCaptivePortalUri, sizeof(gDhcpCaptivePortalUri), "http://%s/", WiFi.softAPIP().toString().c_str());
+  esp_err_t capErr =
+      esp_netif_dhcps_option(ap, ESP_NETIF_OP_SET, ESP_NETIF_CAPTIVEPORTAL_URI, gDhcpCaptivePortalUri,
+                             static_cast<uint32_t>(strlen(gDhcpCaptivePortalUri) + 1));
+  if (capErr != ESP_OK) {
+    logW("dhcp", "CAPTIVEPORTAL_URI: %s", esp_err_to_name(capErr));
+  } else {
+    logI("dhcp", "Captive-Portal-URI: %s", gDhcpCaptivePortalUri);
+  }
+#endif
   esp_err_t st = esp_netif_dhcps_start(ap);
   if (err == ESP_OK && st == ESP_OK) {
     logI("dhcp", "DNS-Option fuer Clients = AP-IP");
@@ -1106,13 +1122,7 @@ void setup() {
   } else {
     startSoftApDhcpServer();
     setDhcpDnsServerToAp();
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 2)
-    if (!WiFi.AP.enableDhcpCaptivePortal()) {
-      logW("dhcp", "enableDhcpCaptivePortal() nicht aktiv (optional)");
-    } else {
-      logI("dhcp", "Captive Portal Option 114 aktiv");
-    }
-#endif
+    /* Opt. 114 (Captive-Portal-URL) wird in setDhcpDnsServerToAp auf http://<AP-IP>/ gesetzt (IDF ≥5.4.2). */
     startDnsForCaptivePortal();
     logI("wifi", "SoftAP bereit, DHCP z. B. 192.168.4.x");
     logW("hint", "Android: Private DNS AUS sonst keine Konnektivitaetstests ueber ESP");
