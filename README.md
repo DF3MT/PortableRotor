@@ -114,6 +114,6 @@ Dieses Projekt steht unter der **GNU General Public License v3.0** — siehe [`L
 
 <div align="center">
 
-**73** · *DF3MT*
+**Vy 73 de** · *DF3MT*
 
 </div>
