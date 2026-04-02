@@ -27,7 +27,7 @@ jobs:
             --fqbn "$FQBN" \
             --output-dir "$SKETCH_DIR/build" \
             "$SKETCH_DIR"
-      - name: Upload firmware artifact (OTA: *.ino.bin)
+      - name: "Upload firmware artifact (OTA: *.ino.bin)"
         uses: actions/upload-artifact@v4
         with:
           name: df3mt-rotor-firmware
