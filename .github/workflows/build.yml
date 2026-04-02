@@ -6,7 +6,7 @@ on:
     branches: [main]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       # Sketch-Ordner = Verzeichnis mit DF3MT-Rotor.ino (Repo-Root relativ)
       SKETCH_DIR: Firmware/DF3MT-Rotor
