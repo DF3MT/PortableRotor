@@ -12,15 +12,15 @@ jobs:
       SKETCH_DIR: Firmware/DF3MT-Rotor
       # Muss zu deinem Board passen (Arduino IDE → Tools): FlashSize, PartitionScheme, Board …
       FQBN: esp32:esp32:esp32:PartitionScheme=default,FlashSize=4M
+      ARDUINO_CLI_VERSION: "1.4.1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: arduino/setup-arduino-cli@v2
-      - name: Install ESP32 core (Arduino-ESP32 3.x)
+      - uses: actions/checkout@v6
+      - name: Install Arduino CLI
         run: |
-          arduino-cli config init
-          arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          mkdir -p "$HOME/bin"
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/bin" sh -s "$ARDUINO_CLI_VERSION"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          arduino-cli version
       - name: Install Arduino libraries
         run: |
           arduino-cli lib update-index
@@ -32,7 +32,7 @@ jobs:
             --output-dir "$SKETCH_DIR/build" \
             "$SKETCH_DIR"
       - name: "Upload firmware artifact (OTA: *.ino.bin)"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: df3mt-rotor-firmware
           path: |
