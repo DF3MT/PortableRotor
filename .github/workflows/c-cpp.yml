@@ -1,0 +1,35 @@
+name: Firmware (ESP32)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Sketch-Ordner = Verzeichnis mit DF3MT-Rotor.ino (Repo-Root relativ)
+      SKETCH_DIR: DF3MT-Rotor
+      # Muss zu deinem Board passen (Arduino IDE → Tools): FlashSize, PartitionScheme, Board …
+      FQBN: esp32:esp32:esp32:PartitionScheme=default,FlashSize=4M
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install ESP32 core (Arduino-ESP32 3.x)
+        run: |
+          arduino-cli config init
+          arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+      - name: Compile
+        run: |
+          arduino-cli compile \
+            --fqbn "$FQBN" \
+            --output-dir "$SKETCH_DIR/build" \
+            "$SKETCH_DIR"
+      - name: Upload firmware artifact (OTA: *.ino.bin)
+        uses: actions/upload-artifact@v4
+        with:
+          name: df3mt-rotor-firmware
+          path: |
+            ${{ env.SKETCH_DIR }}/build/*.bin
