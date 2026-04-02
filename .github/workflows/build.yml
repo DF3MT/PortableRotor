@@ -19,9 +19,7 @@ jobs:
         run: |
           mkdir -p "$HOME/bin"
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/bin" sh -s "$ARDUINO_CLI_VERSION"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-          export PATH="$HOME/bin:$PATH"
-          arduino-cli version
+          "$HOME/bin/arduino-cli" version
       - name: Install Arduino libraries
         run: |
           arduino-cli lib update-index
