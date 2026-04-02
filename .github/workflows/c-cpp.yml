@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Sketch-Ordner = Verzeichnis mit DF3MT-Rotor.ino (Repo-Root relativ)
-      SKETCH_DIR: DF3MT-Rotor
+      SKETCH_DIR: Firmware/DF3MT-Rotor
       # Muss zu deinem Board passen (Arduino IDE → Tools): FlashSize, PartitionScheme, Board …
       FQBN: esp32:esp32:esp32:PartitionScheme=default,FlashSize=4M
     steps:
